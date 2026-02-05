@@ -24,8 +24,6 @@ jobs:
 
       - name: Run script
         env:
-          # --- 这里是关键修改！把 Secret 传给 Python ---
-          MAIL_USER: ${{ secrets.MAIL_USER }}
-          MAIL_PASS: ${{ secrets.MAIL_PASS }}
-          MAIL_RECEIVER: ${{ secrets.MAIL_RECEIVER }}
+          XP_TOKEN: ${{ secrets.XP_TOKEN }}
+          XP_UID: ${{ secrets.XP_UID }}
         run: python daily_news.py
