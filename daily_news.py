@@ -26,7 +26,6 @@ def get_github_updates():
                     repo_url = item['html_url']
                     desc = item['description']
                     stars = item['stargazers_count']
-                    # 邮件 HTML 格式
                     results.append(f"<p>📦 <b>{repo_name}</b> (⭐{stars})<br>🔗 <a href='{repo_url}'>{repo_url}</a><br>📝 {desc}</p>")
         except Exception as e:
             print(f"GitHub Error: {e}")
@@ -59,25 +58,34 @@ def send_email(content):
         print("❌ 未配置邮箱密钥，跳过发送")
         return
 
-    message = MIMEText(content, 'html', 'utf-8') # 内容，格式(HTML)，编码
+    message = MIMEText(content, 'html', 'utf-8')
     message['From'] = Header("电力情报Bot", 'utf-8')
     message['To'] = Header("未来的大牛", 'utf-8')
     message['Subject'] = Header(f"⚡ 电力预测日报 ({datetime.datetime.now().strftime('%m-%d')})", 'utf-8')
 
+    # --- 自动判断邮箱服务器 ---
+    smtp_server = 'smtp.qq.com'
+    if '@163.com' in MAIL_USER:
+        smtp_server = 'smtp.163.com'
+    
+    print(f"正在连接邮箱服务器: {smtp_server} ...")
+
     try:
-        # 连接 QQ 邮箱服务器 (SSL加密端口 465)
-        smtp_obj = smtplib.SMTP_SSL('smtp.qq.com', 465) 
+        # 【修改点】改用 587 端口 + starttls，这在 GitHub Actions 上更稳定
+        smtp_obj = smtplib.SMTP(smtp_server, 587)
+        smtp_obj.ehlo()
+        smtp_obj.starttls() # 启动加密传输
         smtp_obj.login(MAIL_USER, MAIL_PASS)
         smtp_obj.sendmail(MAIL_USER, [MAIL_RECEIVER], message.as_string())
-        print("✅ 邮件发送成功！")
-    except smtplib.SMTPException as e:
+        smtp_obj.quit()
+        print("✅ 邮件发送成功！快去查收！")
+    except Exception as e:
         print(f"❌ 邮件发送失败: {e}")
 
 if __name__ == "__main__":
     github_data = get_github_updates()
     arxiv_data = get_arxiv_updates()
     
-    # 拼接 HTML 内容
     html_msg = "<h2>🚀 今日 GitHub 更新</h2>" + ("".join(github_data) if github_data else "<p>暂无新项目</p>")
     html_msg += "<hr><h2>📚 最新 ArXiv 论文</h2>" + ("".join(arxiv_data) if arxiv_data else "<p>暂无新论文</p>")
     
