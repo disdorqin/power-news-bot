@@ -1,0 +1,28 @@
+name: Daily Power News
+
+on:
+  schedule:
+    # 每天北京时间早上 8:00 运行 (UTC时间 0:00)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # 允许你手动点按钮运行测试
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Run script
+        env:
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+        run: python daily_news.py
