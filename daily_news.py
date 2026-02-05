@@ -1,14 +1,10 @@
 import requests
 import datetime
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.header import Header
 
-# --- 环境变量获取 ---
-MAIL_USER = os.environ.get("MAIL_USER")
-MAIL_PASS = os.environ.get("MAIL_PASS")
-MAIL_RECEIVER = os.environ.get("MAIL_RECEIVER")
+# --- 环境变量 ---
+XP_TOKEN = os.environ.get("XP_TOKEN")
+XP_UID = os.environ.get("XP_UID")
 
 KEYWORDS = ["electricity forecasting", "load forecasting", "time series forecasting"]
 
@@ -26,7 +22,8 @@ def get_github_updates():
                     repo_url = item['html_url']
                     desc = item['description']
                     stars = item['stargazers_count']
-                    results.append(f"<p>📦 <b>{repo_name}</b> (⭐{stars})<br>🔗 <a href='{repo_url}'>{repo_url}</a><br>📝 {desc}</p>")
+                    # HTML 格式优化
+                    results.append(f"📦 <b>{repo_name}</b> (⭐{stars})<br>🔗 <a href='{repo_url}'>{repo_url}</a><br>📝 {desc}<br>")
         except Exception as e:
             print(f"GitHub Error: {e}")
     return results
@@ -48,45 +45,42 @@ def get_arxiv_updates():
                 title = entry.find('atom:title', ns).text.replace('\n', ' ')
                 link = entry.find('atom:id', ns).text
                 published = entry.find('atom:published', ns).text[:10]
-                results.append(f"<p>📄 <b>{title}</b><br>📅 {published}<br>🔗 <a href='{link}'>{link}</a></p>")
+                results.append(f"📄 <b>{title}</b><br>📅 {published}<br>🔗 <a href='{link}'>{link}</a><br>")
         except Exception as e:
             print(f"ArXiv Error: {e}")
     return list(set(results))
 
-def send_email(content):
-    if not MAIL_USER or not MAIL_PASS:
-        print("❌ 未配置邮箱密钥，跳过发送")
+def send_wxpusher(content):
+    if not XP_TOKEN or not XP_UID:
+        print("❌ 未配置 WxPusher 密钥，跳过发送")
         return
 
-    message = MIMEText(content, 'html', 'utf-8')
-    message['From'] = Header("电力情报Bot", 'utf-8')
-    message['To'] = Header("未来的大牛", 'utf-8')
-    message['Subject'] = Header(f"⚡ 电力预测日报 ({datetime.datetime.now().strftime('%m-%d')})", 'utf-8')
-
-    # --- 自动判断邮箱服务器 ---
-    smtp_server = 'smtp.qq.com'
-    if '@163.com' in MAIL_USER:
-        smtp_server = 'smtp.163.com'
+    url = "https://wxpusher.zjiecode.com/api/send/message"
     
-    print(f"正在连接邮箱服务器: {smtp_server} ...")
-
+    # 构造请求数据
+    data = {
+        "appToken": XP_TOKEN,
+        "content": content,
+        "summary": f"⚡ 电力日报 ({datetime.datetime.now().strftime('%m-%d')})", # 消息摘要
+        "contentType": 2, # 2表示HTML
+        "uids": [XP_UID],
+        "verifyPay": False
+    }
+    
     try:
-        # 【修改点】改用 587 端口 + starttls，这在 GitHub Actions 上更稳定
-        smtp_obj = smtplib.SMTP(smtp_server, 587)
-        smtp_obj.ehlo()
-        smtp_obj.starttls() # 启动加密传输
-        smtp_obj.login(MAIL_USER, MAIL_PASS)
-        smtp_obj.sendmail(MAIL_USER, [MAIL_RECEIVER], message.as_string())
-        smtp_obj.quit()
-        print("✅ 邮件发送成功！快去查收！")
+        res = requests.post(url, json=data).json()
+        if res['code'] == 1000:
+            print("✅ 微信推送成功！")
+        else:
+            print(f"❌ 推送失败: {res['msg']}")
     except Exception as e:
-        print(f"❌ 邮件发送失败: {e}")
+        print(f"❌ 网络错误: {e}")
 
 if __name__ == "__main__":
     github_data = get_github_updates()
     arxiv_data = get_arxiv_updates()
     
-    html_msg = "<h2>🚀 今日 GitHub 更新</h2>" + ("".join(github_data) if github_data else "<p>暂无新项目</p>")
-    html_msg += "<hr><h2>📚 最新 ArXiv 论文</h2>" + ("".join(arxiv_data) if arxiv_data else "<p>暂无新论文</p>")
+    html_msg = "<h2>🚀 今日 GitHub 更新</h2>" + ("<br>".join(github_data) if github_data else "暂无新项目")
+    html_msg += "<br><hr><h2>📚 最新 ArXiv 论文</h2>" + ("<br>".join(arxiv_data) if arxiv_data else "暂无新论文")
     
-    send_email(html_msg)
+    send_wxpusher(html_msg)
