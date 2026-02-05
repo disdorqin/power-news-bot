@@ -2,9 +2,9 @@ name: Daily Power News
 
 on:
   schedule:
-    # 每天北京时间早上 8:00 运行 (UTC时间 0:00)
+    # 每天北京时间早上 8:00 运行
     - cron: '0 0 * * *'
-  workflow_dispatch: # 允许你手动点按钮运行测试
+  workflow_dispatch: # 允许手动运行
 
 jobs:
   build:
@@ -24,5 +24,8 @@ jobs:
 
       - name: Run script
         env:
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          # --- 这里是关键修改！把 Secret 传给 Python ---
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
+          MAIL_RECEIVER: ${{ secrets.MAIL_RECEIVER }}
         run: python daily_news.py
